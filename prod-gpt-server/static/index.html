@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+
+<body>
+  hello world
+  <button onclick="pay()">支付</button>
+</body>
+<script>
+  const postData = async (url = '', data = {}) => {
+    // Default options are marked with *
+    const response = await fetch(url, {
+      method: 'POST', // *GET, POST, PUT, DELETE, etc.
+      mode: 'cors', // no-cors, *cors, same-origin
+      cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+      credentials: 'same-origin', // include, *same-origin, omit
+      headers: {
+        'Content-Type': 'application/json'
+        // 'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      redirect: 'follow', // manual, *follow, error
+      referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+      body: JSON.stringify(data) // body data type must match "Content-Type" header
+    });
+    return response.json(); // parses JSON response into native JavaScript objects
+  }
+
+  let query = {}
+  // 解析地址栏的参数
+  if (location.search) {
+    location.search.slice(1).split('&').forEach(raw => {
+      let map = raw.split('=')
+      query[map[0]] = decodeURIComponent(map[1])
+    })
+  }
+  // 判断是否已经拿到数据
+  if (query.openid) {
+    // 如果地址栏已经有用户信息，则输出到页面
+    document.write('<pre>' + JSON.stringify(query, null, 4) + '</pre>')
+    localStorage.setItem('openid', query.openid)
+  } else {
+    console.log('/pro_api/users?referer=' + encodeURIComponent(location.href));
+    // 重定向到配置好的端点，要带上 referer 参数，获取到用户信息后才能正确跳转回当前页面
+    location.href = '/pro_api/users?referer=' + encodeURIComponent(location.href)
+  }
+
+  function pay () {
+    const openid = localStorage.getItem('openid')
+    postData('/pro_api/orders', { userId: openid, packageId: 'bfaef950-e4da-51c5-2cab-37de4c4a903b' }).then(data => {
+      onBridgeReady(data);
+    });
+  }
+
+  function onBridgeReady(data) {
+    WeixinJSBridge.invoke(
+      'getBrandWCPayRequest', data,
+      function (res) {
+        if (res.err_msg == "get_brand_wcpay_request:ok") {
+          instance('支付成功')
+        } else if (res.err_msg == "get_brand_wcpay_request:cancel") {
+          instance('取消支付')
+        } else {
+          instance('支付失败')
+        }
+      })
+  }
+</script>
+</body>
+
+</html>
